@@ -11,7 +11,8 @@ dp = Dispatcher(bot)
 
 DATA_FILE = "subscribers.json"
 
-# --- Загрузка и сохранение ---
+
+# --- Хранилище подписчиков ---
 def load_subscribers():
     if not os.path.exists(DATA_FILE):
         return []
@@ -28,39 +29,47 @@ def add_subscriber(chat_id):
         subs.append(chat_id)
         save_subscribers(subs)
 
-# --- При добавлении бота в чат ---
-@dp.message_handler(content_types=types.ContentTypes.NEW_CHAT_MEMBERS)
-async def on_new_member(message: types.Message):
-    if message.new_chat_members:
-        for member in message.new_chat_members:
-            if member.id == (await bot.me).id:
-                add_subscriber(message.chat.id)
-                await message.reply("✅ Бот доданий у чат і тепер буде отримувати оповіщення!")
 
-# --- /start в личке ---
+# --- Добавление при /start или любом сообщении в чате ---
 @dp.message_handler(commands=["start"])
 async def start_cmd(message: types.Message):
     add_subscriber(message.chat.id)
     await message.answer("✅ Ви підписалися на оповіщення!")
 
-# --- /send команда (только владелец) ---
+@dp.message_handler(content_types=types.ContentTypes.TEXT)
+async def on_text(message: types.Message):
+    # Если бот в чате, добавляем его (на случай, если он уже там)
+    if message.chat.type in ["group", "supergroup"]:
+        add_subscriber(message.chat.id)
+
+
+# --- Если бота только что добавили ---
+@dp.message_handler(content_types=types.ContentTypes.NEW_CHAT_MEMBERS)
+async def on_new_member(message: types.Message):
+    for member in message.new_chat_members:
+        if member.id == (await bot.me).id:
+            add_subscriber(message.chat.id)
+            await message.reply("✅ Бот активований у цьому чаті!")
+
+
+# --- /send для владельца ---
 @dp.message_handler(commands=["send"], content_types=types.ContentTypes.ANY)
 async def send_broadcast(message: types.Message):
     if message.from_user.id != OWNER_ID:
         return await message.reply("🚫 У вас немає прав для цієї команди.")
 
-    subscribers = load_subscribers()
-    if not subscribers:
-        return await message.reply("⚠️ Немає жодного підписника.")
+    subs = load_subscribers()
+    if not subs:
+        return await message.reply("⚠️ Немає підписників для розсилки.")
 
     sent = 0
     failed = 0
 
-    # Если есть медиа (фото, видео, документ)
+    # Медиа-рассылка
     if message.photo:
         file_id = message.photo[-1].file_id
         caption = message.caption or ""
-        for cid in subscribers:
+        for cid in subs:
             try:
                 await bot.send_photo(cid, file_id, caption=caption)
                 sent += 1
@@ -70,7 +79,7 @@ async def send_broadcast(message: types.Message):
     elif message.video:
         file_id = message.video.file_id
         caption = message.caption or ""
-        for cid in subscribers:
+        for cid in subs:
             try:
                 await bot.send_video(cid, file_id, caption=caption)
                 sent += 1
@@ -80,7 +89,7 @@ async def send_broadcast(message: types.Message):
     elif message.document:
         file_id = message.document.file_id
         caption = message.caption or ""
-        for cid in subscribers:
+        for cid in subs:
             try:
                 await bot.send_document(cid, file_id, caption=caption)
                 sent += 1
@@ -88,19 +97,18 @@ async def send_broadcast(message: types.Message):
                 failed += 1
 
     else:
-        # обычное текстовое сообщение
         text = message.text.replace("/send", "").strip()
         if not text:
             return await message.reply("📝 Використання: `/send повідомлення`", parse_mode="Markdown")
-
-        for cid in subscribers:
+        for cid in subs:
             try:
                 await bot.send_message(cid, text)
                 sent += 1
             except Exception:
                 failed += 1
 
-    await message.reply(f"✅ Успішно: {sent}, ❌ Не вдалося: {failed}")
+    await message.reply(f"✅ Успішно: {sent}, ❌ Помилка: {failed}")
+
 
 # --- Запуск ---
 if __name__ == "__main__":
