@@ -23,7 +23,7 @@ async def send_photo(message: types.Message):
     await message.reply_photo(open(filename, "rb"))
 @dp.message_handler(commands=["start"])
 async def start_cmd(message: types.Message):
-    await message.reply("hyi")
+    await message.reply("Привет ты в архиве дани 2010 /list - лист всех видео та фото /video - найти видео /photo - найти фото")
 # --- Команда /video ---
 @dp.message_handler(commands=["video"])
 async def send_video(message: types.Message):
