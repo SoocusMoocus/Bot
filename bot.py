@@ -21,7 +21,8 @@ async def send_photo(message: types.Message):
         return
 
     await message.reply_photo(open(filename, "rb"))
-
+@dp.message_handler(commands=["start"])    
+await message.reply("hyi")
 # --- Команда /video ---
 @dp.message_handler(commands=["video"])
 async def send_video(message: types.Message):
