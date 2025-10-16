@@ -11,8 +11,7 @@ dp = Dispatcher(bot)
 
 DATA_FILE = "subscribers.json"
 
-
-# --- Хранилище подписчиков ---
+# --- Загрузка и сохранение ---
 def load_subscribers():
     if not os.path.exists(DATA_FILE):
         return []
@@ -29,21 +28,19 @@ def add_subscriber(chat_id):
         subs.append(chat_id)
         save_subscribers(subs)
 
-
-# --- Добавление при /start или любом сообщении в чате ---
+# --- Добавление подписчиков ---
 @dp.message_handler(commands=["start"])
 async def start_cmd(message: types.Message):
     add_subscriber(message.chat.id)
     await message.answer("✅ Ви підписалися на оповіщення!")
 
+# --- Когда бот уже в чате или получает сообщение ---
 @dp.message_handler(content_types=types.ContentTypes.TEXT)
 async def on_text(message: types.Message):
-    # Если бот в чате, добавляем его (на случай, если он уже там)
     if message.chat.type in ["group", "supergroup"]:
         add_subscriber(message.chat.id)
 
-
-# --- Если бота только что добавили ---
+# --- Когда бота добавляют в чат ---
 @dp.message_handler(content_types=types.ContentTypes.NEW_CHAT_MEMBERS)
 async def on_new_member(message: types.Message):
     for member in message.new_chat_members:
@@ -51,21 +48,23 @@ async def on_new_member(message: types.Message):
             add_subscriber(message.chat.id)
             await message.reply("✅ Бот активований у цьому чаті!")
 
-
-# --- /send для владельца ---
+# --- Команда /send (работает для владельца) ---
 @dp.message_handler(commands=["send"], content_types=types.ContentTypes.ANY)
 async def send_broadcast(message: types.Message):
+    # Проверяем, кто отправил
     if message.from_user.id != OWNER_ID:
-        return await message.reply("🚫 У вас немає прав для цієї команди.")
+        await message.reply("🚫 У вас немає прав для цієї команди.")
+        return
 
     subs = load_subscribers()
     if not subs:
-        return await message.reply("⚠️ Немає підписників для розсилки.")
+        await message.reply("⚠️ Немає підписників для розсилки.")
+        return
 
     sent = 0
     failed = 0
 
-    # Медиа-рассылка
+    # Если сообщение содержит фото
     if message.photo:
         file_id = message.photo[-1].file_id
         caption = message.caption or ""
@@ -76,6 +75,7 @@ async def send_broadcast(message: types.Message):
             except Exception:
                 failed += 1
 
+    # Если видео
     elif message.video:
         file_id = message.video.file_id
         caption = message.caption or ""
@@ -86,6 +86,7 @@ async def send_broadcast(message: types.Message):
             except Exception:
                 failed += 1
 
+    # Если документ (файл)
     elif message.document:
         file_id = message.document.file_id
         caption = message.caption or ""
@@ -96,10 +97,12 @@ async def send_broadcast(message: types.Message):
             except Exception:
                 failed += 1
 
+    # Если обычный текст
     else:
         text = message.text.replace("/send", "").strip()
         if not text:
-            return await message.reply("📝 Використання: `/send повідомлення`", parse_mode="Markdown")
+            await message.reply("📝 Використання: `/send повідомлення`", parse_mode="Markdown")
+            return
         for cid in subs:
             try:
                 await bot.send_message(cid, text)
@@ -107,8 +110,7 @@ async def send_broadcast(message: types.Message):
             except Exception:
                 failed += 1
 
-    await message.reply(f"✅ Успішно: {sent}, ❌ Помилка: {failed}")
-
+    await message.reply(f"✅ Успішно: {sent}, ❌ Не вдалося: {failed}")
 
 # --- Запуск ---
 if __name__ == "__main__":
