@@ -29,7 +29,7 @@ async def list_cmd(message: types.Message):
 async def send_photo(message: types.Message):
     args = message.get_args()
     if not args:
-        await message.reply("📝 Використання: /photo <название файла без расширения>")
+        await message.reply("📝 Используй: /photo <название файла без расширения>")
         return
 
     filename = f"photos/{args}.jpg"  # можно менять расширение или добавить проверку
@@ -46,7 +46,7 @@ async def start_cmd(message: types.Message):
 async def send_video(message: types.Message):
     args = message.get_args()
     if not args:
-        await message.reply("📝 Використання: /video <название файла без расширения>")
+        await message.reply("📝 Используй: /video <название файла без расширения>")
         return
 
     filename = f"videos/{args}.mp4"
