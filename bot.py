@@ -12,6 +12,7 @@ VIDEO_LIST = {
 }
 PHOTO_LIST = {
     "kopai": "КОПАЙ",
+    "dronevore": "Дрон воре",
 }
 @dp.message_handler(commands=["list"])
 async def list_cmd(message: types.Message):
